@@ -1,0 +1,47 @@
+#!/bin/bash
+##
+# FreeIPA Backup: basic backup script for FreeIPA
+# Copyright 2020 Tim Kennell Jr.
+# Licensed under the MIT License (http://opensource.org/licenses/MIT)
+##
+
+# -------------- #
+# Log Management #
+# -------------- #
+
+# The number of log file to maintain
+# Default is 20
+log_file_rollover=
+
+# ----------------- #
+# Backup Management #
+# ----------------- #
+
+# The number of ipa backup files to maintain
+# Default is 14
+ipa_backup_rollover=
+
+# ------------------ #
+# On-site Host Setup #
+# ------------------ #
+
+# Domain or IP of on-site backup host
+# If left blank, system will not copy backups to an on-site host
+on_site_host_domain=
+
+# SSH Port of on-site backup host
+# If left blank, system will not copy backups to an on-site host
+on_site_host_port=
+
+# User for on-site host login
+# If left blank, system will not copy backups to an on-site host
+on_site_host_user=
+
+# SSH Key (IdentityFile) for logon to on-site backup host
+# If left blank, system will not copy backups to an on-site host
+on_site_host_ssh_key=
+
+# Location on server to store database and system backups
+# If left blank, system will not copy backups to an on-site host
+on_site_host_backup_dir=
+
