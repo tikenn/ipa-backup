@@ -90,16 +90,16 @@ curate_files() {
 	local file_count="$(ls -1 "$dir_to_curate" | wc -l)"
 	local oldest_file
 
-	echo "file count: $file_count"
-	echo "final_file_count: $final_file_count"
+	# echo "file count: $file_count"
+	# echo "final_file_count: $final_file_count"
 	echo
 
 	while (("$file_count" > "$final_file_count")) ; do
 		oldest_file="$(ls -lFtr "$dir_to_curate" \
 			| awk 'FNR == 2 {print $9}')"
 
-		echo "oldest file: $oldest_file"
-		echo
+		# echo "oldest file: $oldest_file"
+		# echo
 
 		rm -rf "$dir_to_curate/$oldest_file"
 
@@ -119,6 +119,32 @@ on_site_host_login_params=(
 	"$on_site_host_ssh_key"
 )
 
+# Checks for ability to login to remote host
+# param String $1 -- absolute path to log file
+# param String $2 -- domain name of host
+# param String $3 -- SSH port of host
+# param String $4 -- backup user of host
+# param String $5 -- host ssh key (no passphrase allowed)
+remote_host_parameters_ok() {
+	local log_file="$1"
+	local domain="$2"
+	local port="$3"
+	local user="$4"
+	local ssh_key="$5"
+
+	if [[ -z "$domain" ]] \
+		|| [[ -z "$port" ]] \
+		|| [[ -z "$user" ]] \
+		|| [[ -z "$ssh_key" ]]
+	then
+		echo -n "Remote Backup Error: one of the host " >> "$log_file"
+		echo -n "parameters is missing.  Check the config " >> "$log_file"
+		echo "file (ipa-backup.conf) " >> "$log_file"
+		return 1
+	else
+		return 0
+	fi
+}
 
 # Checks SSH key for existance and unencrypted state
 # param Var (as string) $1 -- absolute path of host ssh key
@@ -152,17 +178,17 @@ ssh_key_ok() {
 }
 
 # Checks for ability to login to remote host
-# param String $1 -- domain name of host
-# param String $2 -- SSH port of host
-# param String $3 -- backup user of host
-# param String $4 -- host ssh key (no passphrase allowed)
-# param String $5 -- absolute path to log file
+# param String $1 -- absolute path to log file
+# param String $2 -- domain name of host
+# param String $3 -- SSH port of host
+# param String $4 -- backup user of host
+# param String $5 -- host ssh key (no passphrase allowed)
 host_login_ok() {
-	local domain="$1"
-	local port="$2"
-	local user="$3"
-	local ssh_key="$4"
-	local log_file="$5"
+	local log_file="$1"
+	local domain="$2"
+	local port="$3"
+	local user="$4"
+	local ssh_key="$5"
 
 	# Remote host unable to be logged into
 	if ! ssh -q -F /dev/null "$user@$domain" -p "$port" -i "$ssh_key" -o \
@@ -186,19 +212,19 @@ host_login_ok() {
 }
 
 # Checks existence of credentials for a backup host
-# param String $1 -- domain name of host
-# param String $2 -- SSH port of host
-# param String $3 -- backup user of host
-# param String $4 -- host ssh key (no passphrase allowed)
-# param String $5 -- backup directory on remote host
-# param String $6 -- absolute path to log file
+# param String $1 -- absolute path to log file
+# param String $2 -- domain name of host
+# param String $3 -- SSH port of host
+# param String $4 -- backup user of host
+# param String $5 -- host ssh key (no passphrase allowed)
+# param String $6 -- backup directory on remote host
 backup_dir_ok() {
-	local domain="$1"
-	local port="$2"
-	local user="$3"
-	local ssh_key="$4"
-	local backup_dir="$5"
-	local log_file="$6"
+	local log_file="$1"
+	local domain="$2"
+	local port="$3"
+	local user="$4"
+	local ssh_key="$5"
+	local backup_dir="$6"
 
 	local file_owner
 	local file_permissions
@@ -246,24 +272,30 @@ backup_dir_ok() {
 
 # Checks the health of the remote backup host by simply checking above functions
 #     for success
-# param String $1 -- domain name of host
-# param String $2 -- SSH port of host
-# param String $3 -- backup user of host
-# param String $4 -- host ssh key (no passphrase allowed)
-# param Dir $5 -- directory storing backups to be curated
-# param String $6 -- absolute path to log file
+# param String $1 -- absolute path to log file
+# param String $2 -- domain name of host
+# param String $3 -- SSH port of host
+# param String $4 -- backup user of host
+# param String $5 -- host ssh key (no passphrase allowed)
+# param Dir $6 -- directory storing backups to be curated
 remote_host_healthy() {
-	local domain="$1"
-	local port="$2"
-	local user="$3"
-	local ssh_key="$4"
-	local backup_dir="$5"
-	local log_file="$6"
+	local log_file="$1"
+	local domain="$2"
+	local port="$3"
+	local user="$4"
+	local ssh_key="$5"
+	local backup_dir="$6"
 
-	if ! ssh_key_ok "$ssh_key" \
-		|| ! host_login_ok "$domain" "$port" "$user" "$ssh_key" "$log_file" \
-		|| ! backup_dir_ok "$domain" "$port" "$user" "$ssh_key" "$backup_dir" \
-			"$log_file"
+	# echo "1 2 3 4 5 6: $1, $2, $3, $4, $5, $6"
+
+	# echo "remote host health log file: $log_file"
+
+	if ! remote_host_parameters_ok "$log_file" "$domain" "$port" "$user" \
+			"$ssh_key" \
+		|| ! ssh_key_ok "$log_file" "$ssh_key" \
+		|| ! host_login_ok "$log_file" "$domain" "$port" "$user" "$ssh_key" \
+		|| ! backup_dir_ok "$log_file" "$domain" "$port" "$user" "$ssh_key" \
+			"$backup_dir"
 	then
 
 		# something went wrong with the remote host, remote host not ready
@@ -314,31 +346,35 @@ create_remote_backup_dirs() {
 curate_files "$INSTALL_LOCATION/$LOG_DIR" "$log_file_rollover"
 
 # Perform backup
-# ipa-backup
+ipa-backup
 
 # If backup successful and remote host healthy
 if [[ "$?" = "0" ]] \
-	&& remote_host_healthy ${on_site_host_login_params[@]} \
-		"$on_site_host_backup_dir" "$LOG_FILE"
+	&& remote_host_healthy "$LOG_FILE" ${on_site_host_login_params[@]} \
+		"$on_site_host_backup_dir"
 then
 	echo "IPA Backup Info: Successfully stored local backup" >> "$LOG_FILE"
 	curate_files "$IPA_BACKUP_DIR" "$ipa_backup_rollover"
 
+	ipa_backup_dir="ipa-backup"
+
 	create_remote_backup_dirs ${on_site_host_login_params[@]} \
-		"$on_site_host_backup_dir" ipa-backup
+		"$on_site_host_backup_dir" "$ipa_backup_dir"
 
 	# Attempt remote sync
-	rsync -azP -e "ssh -e $on_site_host_ssh_key -p $on_site_host_port -o IdentitiesOnly=yes -o StrictHostKeyChecking=no" \
+	rsync -azP -e "ssh -i $on_site_host_ssh_key -p $on_site_host_port -o IdentitiesOnly=yes -o StrictHostKeyChecking=no" \
 		"$IPA_BACKUP_DIR/" \
-		"$on_site_host_user@$on_site_host_domain:$on_site_host_backup_dir" \
-		&>> "$LOG_FILE"
+		"$on_site_host_user@$on_site_host_domain:$on_site_host_backup_dir/$ipa_backup_dir" \
+		| tee -a "$LOG_FILE"
 
 	# Unsuccessful remote sync
-	if ! [[ "$?" = "0" ]]; then
-		echo -n "IPA Backup Info: Successfully synced " >> "$LOG_FILE"
+	if [[ "$?" = "0" ]]; then
+		echo -n "Remote Backup Info: Successfully synced " >> "$LOG_FILE"
 		echo "to on-site backup location " >> "$LOG_FILE"
-
+	else
+		echo -n "Remote Backup Error: Could not sync backups with remote host"
 	fi
 else
-	echo "E: Something went wrong with the IPA backup" >> "$LOG_FILE"
+	echo "IPA Backup Error: Something went wrong with the IPA backup" \
+		>> "$LOG_FILE"
 fi
