@@ -108,6 +108,52 @@ curate_files() {
         done
 }
 
+# ------------------------------- #
+# Generic Remote Backup Functions #
+# ------------------------------- #
+
+# SSH params combined for easier use
+on_site_host_login_params=(
+        "$on_site_host_domain"
+        "$on_site_host_port"
+        "$on_site_host_user"
+        "$on_site_host_ssh_key"
+)
+
+
+# Creates the remote backup directories from an array listing the desired 
+#     directories
+# param String $1 -- domain name of host
+# param String $2 -- SSH port of host
+# param String $3 -- backup user of host
+# param String $4 -- host ssh key (no passphrase allowed)
+# param Dir $5 -- parent directory to contain backups
+# param Array $6 -- array of backups directories
+## Ex: create_remote_backup_dirs ("dir1" "dir2") --> ./dir1/ ./dir2/
+create_remote_backup_dirs() {
+        local domain="$1"
+        local port="$2"
+        local user="$3"
+        local ssh_key="$4"
+        local parent_dir="$5"
+
+        shift; shift; shift; shift; shift
+        local db_backup_dirs=("$@")
+
+        echo "remote backup dirs in func: ${db_backup_dirs[@]}"
+
+        ssh -q -F /dev/null "$user@$domain" -p "$port" \
+                -i "$ssh_key" -o IdentitiesOnly=yes -o StrictHostKeyChecking=no '
+
+                # Create directory structure
+                for dir in '${db_backup_dirs[@]}' ; do
+                        if ! [[ -d "'$parent_dir'/$dir" ]] ; then
+                                mkdir -p "'$parent_dir'/$dir"
+                        fi
+                done
+        '
+}
+
 # ------------ #
 # Main Program #
 # ------------ #
@@ -122,6 +168,9 @@ ipa-backup
 if [[ "$?" = "0" ]] ; then
         echo "IPA Backup Info: Successfully stored local backup" >> "$LOG_FILE"
         curate_files "$IPA_BACKUP_DIR" "$ipa_backup_rollover"
+
+        create_remote_backup_dirs ${on_site_host_login_params[@]} \
+                "$on_site_host_backup_dir" ipa-backup
 
         # Attempt remote sync
         rsync -az -e "ssh -e $on_site_host_ssh_key -p $on_site_host_port -o IdentitiesOnly=yes -o StrictHostKeyChecking=no" \
