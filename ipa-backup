@@ -362,10 +362,10 @@ then
 		"$on_site_host_backup_dir" "$ipa_backup_dir"
 
 	# Attempt remote sync
-	rsync -azP -e "ssh -i $on_site_host_ssh_key -p $on_site_host_port -o IdentitiesOnly=yes -o StrictHostKeyChecking=no" \
+	rsync -azzP -e "ssh -i $on_site_host_ssh_key -p $on_site_host_port -o IdentitiesOnly=yes -o StrictHostKeyChecking=no" \
 		"$IPA_BACKUP_DIR/" \
 		"$on_site_host_user@$on_site_host_domain:$on_site_host_backup_dir/$ipa_backup_dir" \
-		| tee -a "$LOG_FILE"
+		>> >(tee -a "$LOG_FILE") 2>> >(tee -a "$LOG_FILE")
 
 	# Unsuccessful remote sync
 	if [[ "$?" = "0" ]]; then
